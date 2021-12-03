@@ -5,10 +5,14 @@
 #include "place_dir_pairs_abstract_model.h"
 #include "ui_data.h"
 #include "abstract_file_entry_model.h"
+#if defined Q_OS_ANDROID
+#include <QJniObject>
+#include <QtCore/private/qandroidextras_p.h>
+#endif
 
 const int DEFAULT_FONT_POINTSIZE = 11;
 
-void registerGlobalContextQMLVariables(QQmlEngine& engine)
+void RegisterGlobalContextQMLVariables(QQmlEngine& engine)
 {
     engine.rootContext()->setContextProperty("ASFontPointSizes",
                                              QMap<QString,QVariant> {
@@ -23,6 +27,14 @@ void registerGlobalContextQMLVariables(QQmlEngine& engine)
                                              );
 }
 
+#if defined Q_OS_ANDROID
+void AskForAndroidPermissions()
+{
+  const QString per = "android.permission.READ_EXTERNAL_STORAGE";
+  QtAndroidPrivate::requestPermission(per);
+}
+#endif
+
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
@@ -31,6 +43,9 @@ int main(int argc, char *argv[])
     app.setFont(font);
 #if defined Q_OS_WIN
     qputenv("QSG_RHI_BACKEND","opengl");
+#endif
+#if defined Q_OS_ANDROID
+    AskForAndroidPermissions();
 #endif
     place_dir_pairs_abstract_model_instance();
     ui_data_instance();
@@ -41,7 +56,7 @@ int main(int argc, char *argv[])
         if (!obj && url == objUrl)
             QCoreApplication::exit(-1);
     }, Qt::QueuedConnection);
-    registerGlobalContextQMLVariables(engine);
+    RegisterGlobalContextQMLVariables(engine);
     engine.load(url);
     return app.exec();
 }
