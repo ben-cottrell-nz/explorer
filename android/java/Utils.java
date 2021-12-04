@@ -30,6 +30,7 @@ public class Utils{
       i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
       activity.startActivity(i);
     } catch (Exception e) {
+        Log.e(APPLICATION_ID, e.getMessage());
       return false;
     }
   return true;

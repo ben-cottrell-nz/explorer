@@ -123,7 +123,7 @@ bool AbstractFileEntryModel::openFile(QString path)
                                      "()Z");
   jboolean returnValue = JniObj::callStaticMethod<jboolean>("com/bgcottrell/explorer/Utils",
                                  "openFile",
-                                 "(Landroid/content/Activity;ZLjava/lang/String;Ljava/lang/String;)Z",
+                                 "(Landroid/app/Activity;ZLjava/lang/String;Ljava/lang/String;)Z",
                                  QNativeInterface::QAndroidApplication::context(),
                                  isExternal,
                                  JniObj::fromString(fullPath).object(),
