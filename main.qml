@@ -37,7 +37,6 @@ ApplicationWindow {
                     text: "Refresh"
                 }
                 ToolSeparator {}
-
                 TextField {
                     id: textAddress
                     Layout.fillWidth: true

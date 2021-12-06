@@ -10,3 +10,6 @@ and then launch the downloaded executable, following the steps to install Qt.
 
 When you've finished with the installer, open Qt Creator, and open the CMakeLists.txt file. Then,
 configure the project with the active kit. You should be able to build or run the target executable.
+
+## Credits
+Icons taken from Adobe Spectrum (https://spectrum.adobe.com/page/icons/)
