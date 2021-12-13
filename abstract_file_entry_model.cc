@@ -10,6 +10,8 @@
 #include <QUrl>
 #endif
 #include <QMimeDatabase>
+#include "ui_data.h"
+#include <QList>
 
 QHash<int, QByteArray> AbstractFileEntryModel::roleNames() const {
   QHash<int, QByteArray> roles;
@@ -17,6 +19,7 @@ QHash<int, QByteArray> AbstractFileEntryModel::roleNames() const {
   roles[FileSize] = "fileSize";
   roles[IsDirectory] = "isDirectory";
   roles[IsChecked] = "isChecked";
+  roles[IsRenaming] = "isRenaming";
   return roles;
 }
 //Based on code from https://stackoverflow.com/a/47854799/3924272
@@ -49,6 +52,8 @@ QVariant AbstractFileEntryModel::data(const QModelIndex& index, int role = Qt::D
       return currentEntry.is_directory_;
     case IsChecked:
       return currentEntry.is_checked_;
+    case IsRenaming:
+      return currentEntry.is_renaming_;
   }
   return QVariant();
 }
@@ -57,26 +62,45 @@ void AbstractFileEntryModel::append(FileEntry value) {
 }
 bool AbstractFileEntryModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
-  FileEntry currentEntry = entries_[index.row()];
+    if (!index.isValid()) {
+        return false;
+    }
+  FileEntry& currentEntry = entries_[index.row()];
   switch (role) {
     case FileName:
       currentEntry.name_ = value.toString();
+      break;
     case FileSize:
       currentEntry.size_ = value.toReal();
+      break;
     case IsDirectory:
       currentEntry.is_directory_ = value.toBool();
+      break;
     case IsChecked:
       currentEntry.is_checked_ = value.toBool();
-      return true;
+      break;
+    case IsRenaming:
+      currentEntry.is_renaming_ = value.toBool();
+      break;
   }
-  return false;
+  emit dataChanged(index, index, {role});
+  emit allDataChanged();
+  return true;
 }
 Qt::ItemFlags AbstractFileEntryModel::flags(const QModelIndex &index) const
 {
   Q_UNUSED(index)
-  return Qt::ItemIsEditable;
+    return Qt::ItemIsEditable;
+}
+
+void AbstractFileEntryModel::setItemChecked(int index, bool checked)
+{
+    if (index > 0 && index < entries_.length()) {
+        entries_[index].is_checked_ = checked;
+    }
 }
 void AbstractFileEntryModel::openDirectory(QString path, bool isRelative) {
+    ui_data_instance()->clearSelectedFiles();
   if (isRelative) {
     current_path_ = QFileInfo(current_path_ + '/' + path).canonicalFilePath();
   } else {
@@ -92,15 +116,10 @@ void AbstractFileEntryModel::openDirectory(QString path, bool isRelative) {
     if (file.fileName() == "." || file.fileName() == "..") continue;
     FileEntry entry;
     entry.name_ = file.fileName();
-//    if (file.isDir()) {
-//      //Get total size of the directory
-//      entry._size = dirSize(file.path());
-//    } else {
-      entry.size_ = file.size();
-//    }
+    entry.size_ = file.size();
     entry.is_directory_ = file.isDir();
     entry.is_checked_ = false;
-    //qDebug() << entry.name_;
+    entry.is_renaming_ = false;
     append(entry);
   }
   endInsertRows();
@@ -137,7 +156,7 @@ bool AbstractFileEntryModel::openFile(QString path)
 #elif defined Q_OS_LINUX || defined Q_OS_WINDOWS
 bool AbstractFileEntryModel::openFile(QString path)
 {
-    QDesktopServices::openUrl(QString("file://%1/%2").arg(current_path_).arg(path));
+    QDesktopServices::openUrl(QString("file://%1/%2").arg(current_path_,path));
     return false;
 }
 #endif
@@ -151,7 +170,10 @@ void AbstractFileEntryModel::refresh()
 }
 QString AbstractFileEntryModel::filenameAt(qint32 index)
 {
-  return entries_.at(index).name_;
+    if (index >= 0 && index < entries_.length()) {
+        return entries_.at(index).name_;
+    }
+    return "";
 }
 QString AbstractFileEntryModel::readableFileSize(quint64 byte_size)
 {
@@ -165,13 +187,77 @@ QString AbstractFileEntryModel::readableFileSize(quint64 byte_size)
   return QString("%1 GB").arg(QString::number(byte_size * 0.000000001, 'f', 1));
 }
 
-QString AbstractFileEntryModel::currentPath()
+void AbstractFileEntryModel::setItemIsRenaming(int index, bool value)
+{
+    if (index > 0 && index < entries_.length()) {
+        entries_[index].is_renaming_ = value;
+    }
+}
+
+void AbstractFileEntryModel::renameForSelectedFile()
+{
+    int i = 0;
+    for (auto& f : entries_) {
+        if (f.is_checked_) {
+            f.is_renaming_ = true;
+            emit allDataChanged();
+            break;
+        }
+        i++;
+    }
+}
+
+void AbstractFileEntryModel::update()
+{
+    emit dataChanged(index(0,0), index(entries_.length(),DisplayRoles::IsRenaming));
+}
+
+void AbstractFileEntryModel::renameFile(int index, QString file_name)
+{
+    if (index >= 0 && index < entries_.length()) {
+        if (QFile::rename(QString("%1/%2").arg(
+                              current_path_, entries_[index].name_),
+                          QString("%1/%2").arg(
+                              current_path_, file_name))) {
+            entries_[index].name_ = file_name;
+            emit allDataChanged();
+            ui_data_instance()->fileRenamed(current_path_, file_name);
+        }
+    }
+}
+
+void AbstractFileEntryModel::CopyFilesToCurrentPath(QList<FileSelection>& files)
+{
+
+}
+
+QString AbstractFileEntryModel::CurrentPath()
 {
     return current_path_;
+}
+
+bool AbstractFileEntryModel::FilesAlreadyExist(QList<FileSelection>& files)
+{
+    auto file_iter = files.constBegin();
+    for (auto f : entries_) {
+        if (file_iter->filename_ == f.name_) {
+            if (file_iter != files.cend()) {
+                file_iter++;
+            } else {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 AbstractFileEntryModel *abstract_file_entry_model_instance()
 {
     static AbstractFileEntryModel instance;
     return &instance;
+}
+
+void AbstractFileEntryModel::MoveFilesToCurrentPath(QList<FileSelection>& files)
+{
+
 }

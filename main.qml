@@ -18,6 +18,28 @@ ApplicationWindow {
         textAddress.text = currentPath
     }
 
+    OverwriteDialog {
+        id: overwriteDialog
+        modal: true
+        visible: false
+        width: 0.5 * root.width
+        height: 0.5 * root.height
+        anchors.centerIn: parent
+        onAccepted: {
+            UIData.overwriteApproved(true)
+        }
+        onRejected: {
+            UIData.overwriteApproved(false)
+        }
+    }
+
+    Connections {
+        target: UIData
+        function onOverwriteApprovalRequested() {
+            overwriteDialog.visible = true
+        }
+    }
+
     header: ToolBar {
         Column {
             anchors.fill: parent
@@ -35,11 +57,16 @@ ApplicationWindow {
                 ToolButton {
                     icon.source: "qrc:/icons/refresh.svg"
                     text: "Refresh"
+                    onClicked: FileModel.refresh()
                 }
                 ToolSeparator {}
                 TextField {
                     id: textAddress
+                    text: "/home/ben/Documents/test/folderA"
                     Layout.fillWidth: true
+                    onEditingFinished: {
+                        FileModel.openDirectory(textAddress.text,false)
+                    }
                 }
                 ToolButton {
                     text: "Go"
@@ -55,22 +82,62 @@ ApplicationWindow {
                 ToolButton {
                     icon.source: "qrc:/icons/selection.svg"
                     text: "Selecting Mode"
+                    onClicked: {
+                        UIData.selectingMode = !UIData.selectingMode
+                    }
                 }
                 ToolButton {
                     icon.source: "qrc:/icons/copy.svg"
                     text: "Copy"
+                    enabled: UIData.selectingMode && UIData.selectedFilesCount > 0
+                    onClicked: {
+                        //copy
+                        UIData.setOperation(1)
+                    }
+
                 }
                 ToolButton {
                     icon.source: "qrc:/icons/cut.svg"
                     text: "Cut"
+                    enabled: UIData.selectingMode && UIData.selectedFilesCount > 0
+                    onClicked: {
+                        //move
+                        UIData.setOperation(2)
+                    }
                 }
                 ToolButton {
                     icon.source: "qrc:/icons/paste.svg"
                     text: "Paste"
+                    enabled: UIData.selectedFilesCount > 0
+                    onClicked: {
+                        var op = UIData.getOperation();
+                        console.log(`op: ${op}`)
+                        if (op == 1) {
+                            UIData.copySelectedFilesToCurrentPath()
+                        } else if (op == 2) {
+                            UIData.moveSelectedFilesToCurrentPath()
+                        }
+                    }
                 }
+                ToolButton {
+                    icon.source: "qrc:/icons/rename.svg"
+                    text: "Rename"
+                    enabled: UIData.selectingMode && UIData.selectedFilesCount == 1
+                    onClicked: {
+                        FileModel.renameForSelectedFile()
+                        FileModel.update()
+                    }
+                }
+
                 ToolButton {
                     icon.source: "qrc:/icons/info.svg"
                     text: "Information"
+                    enabled: UIData.selectingMode
+                    onClicked: {
+                        var d = Qt.createQmlObject('import QtQuick;
+FileInfoDialog { visible: true; width: 0.5 * root.width; height: 0.6 * root.height; anchors.centerIn: parent }
+', root, 'infoDialog');
+                    }
                 }
             }
         }
@@ -107,45 +174,18 @@ ApplicationWindow {
         }
         Item {
             id: view
-            Component {
-                id: itemDelegate
-                Item {
-                    width: view.width
-                    Rectangle {
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: if (model.isDirectory) {
-                                           FileModel.openDirectory(model.fileName,true)
-                                       } else {
-                                           FileModel.openFile(model.fileName)
-                                       }
-                        }
-                        width: view.width
-                        height: 48
-                        color: model.isSelected ? "blue" : "transparent"
-                            Image {
-                                id: img
-                                source: model.isDirectory ? "qrc:/icons/folder.svg" : "qrc:/icons/file-text.svg"
-                                width: 48
-                                height: 48
-                            }
-
-                            Label {
-                                anchors.left: img.right
-                                textFormat: Label.RichText
-                                text: `${model.fileName}<br><b>${FileModel.readableFileSize(model.fileSize)}</b>`
-                                elide: Label.ElideRight
-                            }
-                    }
-                }
-            }
-
             GridView {
                 model: FileModel
                 cellWidth: view.width
                 cellHeight: 48
                 anchors.fill: parent
-                delegate: itemDelegate
+                delegate: FileEntry {
+                    fileName: model.fileName
+                    fileSize: model.fileSize
+                    isChecked: model.isChecked
+                    isDirectory: model.isDirectory
+                    isRenaming: model.isRenaming
+                }
                 ScrollBar.vertical: ScrollBar {
 
                 }

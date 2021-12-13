@@ -13,5 +13,7 @@
         <file>icons/selection.svg</file>
         <file>icons/folder.svg</file>
         <file>icons/file-text.svg</file>
+        <file>icons/alert.svg</file>
+        <file>icons/rename.svg</file>
     </qresource>
 </RCC>

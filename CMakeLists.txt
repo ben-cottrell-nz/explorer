@@ -37,8 +37,17 @@ endif()
 qt_add_qml_module(appExplorer
     URI Explorer
     VERSION 1.0
-    QML_FILES main.qml Expander.qml
+    QML_FILES
+    main.qml
+    Expander.qml
+    FileInfoDialog.qml
+    OverwriteDialog.qml
+    FileEntry.qml
 )
+
+qt_add_executable(test-rename
+    test_rename.cc
+    )
 
 target_compile_definitions(appExplorer
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
